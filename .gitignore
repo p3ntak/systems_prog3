@@ -2,6 +2,6 @@ cscope.files
 cscope.out
 TAGS
 tags
-Pintos.pm
-pintos
-pintos-gdb
+utils/Pintos.pm
+utils/pintos
+utils/pintos-gdb
