@@ -7,6 +7,14 @@
 
 static void syscall_handler (struct intr_frame *);
 
+struct fd_elem{
+    struct list_elem elem;
+    int fd;
+    struct file* the_file;
+};
+
+struct list fd_list;
+
 typedef uint32_t (*syscall)(uint32_t, uint32_t, uint32_t);
 /* syscal is typedef'ed to a function pointers that
    takes three uint32_t's and returns a unit32_t */
@@ -161,6 +169,17 @@ bool sys_remove (const char *file){
     share a file position.
     */
 int sys_open (const char *file){
+    struct file* opened_file = filesys_open(file);
+
+    // Assign a fd to this file*
+    struct fd_elem new_fd_elem;
+    new_fd_elem.fd = get_next_fd();
+    new_fd_elem.the_file = opened_file;
+
+    // Add the fd to the end of the fd table
+    list_push_back(&fd_list, &(new_fd_elem.elem));
+
+    return new_fd_elem.fd;
 }
 
 /*    Returns the size, in bytes, of the file open as fd. 
@@ -234,6 +253,29 @@ unsigned sys_tell (int fd){
 void sys_close (int fd){
 }
 
+int get_next_fd(){
+    // Look at the file descriptor list
+
+
+    bool is_list_empty = (list_begin (&fd_list) == list_end (&fd_list));
+    if (is_list_empty)
+    {
+        // If the fd list is empty, assign a default starting fd (100)
+        return 100;
+    }
+    else
+    {
+        // Return the last fd + 1
+        struct fd_elem *last_elem = list_tail(&fd_list);
+        int last_fd = last_elem->fd;
+        printf("*****The last fd was %d\n", last_fd);
+        return last_fd + 1;
+    }
+
+
+}
+
+
 void
 syscall_init (void) 
 {
@@ -291,6 +333,9 @@ syscall_init (void)
   //  SYS_CLOSE,                  /* Close a file. */
   syscall_tab[SYS_CLOSE] = (syscall)&sys_close;
   syscall_nArgs[SYS_CLOSE] = 1;
+
+    // Init the fd linked list
+  list_init (&fd_list);
 
 
 }
