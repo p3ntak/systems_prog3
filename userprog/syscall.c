@@ -275,18 +275,17 @@ int get_next_fd(){
     if (is_list_empty)
     {
         // If the fd list is empty, assign a default starting fd (100)
+        //printf("Returning 100\n");
         return 100;
     }
     else
     {
         // Return the last fd + 1
-        struct fd_elem *last_elem = list_tail(&fd_list);
+        struct fd_elem *last_elem = list_rbegin (&fd_list);
         int last_fd = last_elem->fd;
-        printf("*****The last fd was %d\n", last_fd);
+        //printf("*****The last fd was %d\n", last_fd);
         return last_fd + 1;
     }
-
-
 }
 
 
