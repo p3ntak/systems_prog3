@@ -147,6 +147,7 @@ bool sys_create (const char *file, unsigned initial_size) {
     Removing an Open File, for details.
 */
 bool sys_remove (const char *file){
+    filesys_remove(file);
 }
 
 /*    Opens the file called file. Returns a nonnegative integer handle
@@ -169,6 +170,12 @@ bool sys_remove (const char *file){
     share a file position.
     */
 int sys_open (const char *file){
+
+    if (strlen(file) == 0)
+    {
+        // Test open-empty
+        return -1;
+    }
     struct file* opened_file = filesys_open(file);
 
     // Assign a fd to this file*
