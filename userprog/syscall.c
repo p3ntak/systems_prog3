@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -265,6 +266,24 @@ unsigned sys_tell (int fd){
     this function for each one.
 */
 void sys_close (int fd){
+    // We are given the fd-- lookup the corresponding file*
+    struct file* found_file = get_file_from_fd(fd);
+    file_close(found_file);
+
+}
+
+int get_file_from_fd(int fd)
+{
+    struct list_elem *e;
+    for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
+    {
+        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+
+        if (f->fd == fd)
+        {
+            return f->the_file;
+        }
+    }
 }
 
 int get_next_fd(){
