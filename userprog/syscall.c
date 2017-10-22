@@ -176,7 +176,14 @@ int sys_open (const char *file){
         // Test open-empty
         return -1;
     }
+
     struct file* opened_file = filesys_open(file);
+
+    if (opened_file == NULL)
+    {
+        // Test open-missing
+        return -1;
+    }
 
     // Assign a fd to this file*
     struct fd_elem new_fd_elem;
