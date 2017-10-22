@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -119,7 +120,16 @@ int sys_wait (pid_t pid){
       new file does not open it: opening the new file is a separate
       operation which would require a open system call.
 */
-bool sys_create (const char *file, unsigned initial_size){
+bool sys_create (const char *file, unsigned initial_size) {
+    if (file == NULL)
+    {
+        // Test: create-null
+        sys_exit(-1);
+    }
+
+    // All other create tests are handled by filesys_create
+    return filesys_create(file, initial_size);
+
 }
 
 /*

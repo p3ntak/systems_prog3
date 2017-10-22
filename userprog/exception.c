@@ -148,14 +148,27 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+
+  // Calling sys_exit(-1) here causes the following tests to pass:
+  //    tests/userprog/sc-bad-sp
+  //    tests/userprog/create-bad-ptr
+  //    tests/userprog/bad-read
+  //    tests/userprog/bad-write
+  //    tests/userprog/bad-read2
+  //    tests/userprog/bad-write2
+  //    tests/userprog/bad-jump
+  //    tests/userprog/bad-jump2
+
+    sys_exit(-1);   // TODO: fix implicit declaration
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+//  printf ("Page fault at %p: %s error %s page in %s context.\n",
+//          fault_addr,
+//          not_present ? "not present" : "rights violation",
+//          write ? "writing" : "reading",
+//          user ? "user" : "kernel");
+//  kill (f);
 }
 
