@@ -129,28 +129,7 @@ bool sys_create (const char *file, unsigned initial_size) {
 
     // All other create tests are handled by filesys_create
     return filesys_create(file, initial_size);
-//    if (file == NULL)
-//    {
-//        // Test: create-null
-//        sys_exit(-1);
-//    }
-//
-//    else if (strlen(file) == 0)
-//    {
-//        // Test: create-empty
-//        return 0;
-//    }
-////    else if (access(file), F_OK == -1)
-////    {
-////        // Test: create_exists
-////        return 0;
-////    }
-//
-//    else
-//    {
-//        // Test: create-normal
-//        return 1;
-//    }
+
 }
 
 /*
