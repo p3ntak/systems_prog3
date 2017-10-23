@@ -7,11 +7,14 @@
 #include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
+bool remove_fd_from_table(int fd);
 
 struct fd_elem{
+
     struct list_elem elem;
-    int fd;
     struct file* the_file;
+
+    int fd;
 };
 
 struct list fd_list;
@@ -265,31 +268,97 @@ unsigned sys_tell (int fd){
     implicitly closes all its open file descriptors, as if by calling
     this function for each one.
 */
-void sys_close (int fd){
+void sys_close (int fd) {
     // We are given the fd-- lookup the corresponding file*
-    struct file* found_file = get_file_from_fd(fd);
-    file_close(found_file);
+    struct file *found_file = get_file_from_fd(fd);
 
+    if (found_file == NULL) {
+        // Test close-twice
+        return;
+    }
+    else {
+        // Test close-normal
+        if (remove_fd_from_table(fd)) {
+            printf("About to close file...\n");
+            file_close(found_file);
+        }
+
+    }
+}
+
+bool remove_fd_from_table(int fd)
+{
+    int count = 0;
+    struct list_elem *e;
+    printf("**** remove_fd_from_table\n");
+    for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
+    {
+        printf("**** count=%d\n", count);
+        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+
+//        if (f == list_tail(f))
+//        {
+//            printf("******We are at the tail -- returning false\n");
+//            return false;
+//        }
+
+        if (f->fd == fd)
+        {
+            printf("******Found a matching fd %d\n", f->fd);
+//            printf("%d, %d, %d\n", f, &f, *f);
+            //list_remove(&f);
+            f->fd = -1;
+            return true;
+        }
+        count++;
+    }
+
+    // We couldn't find the fd in the table, so don't do anything.
+    printf("******We are at the tail -- returning false\n");
+    return false;
 }
 
 int get_file_from_fd(int fd)
 {
+    printf("****aaaa\n");
     struct list_elem *e;
-    for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
-    {
-        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
 
+    printf("****bbbb\n");
+    e = list_begin (&fd_list);
+    printf("****cccc\n");
+    while(e != list_end (&fd_list) && e->next != NULL)
+    {
+        printf("****dddd\n");
+        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+        printf("****eeee\n");
         if (f->fd == fd)
         {
+            printf("***** we found the file for the fd\n");
             return f->the_file;
         }
+        printf("****ffff\n");
+
+        e = list_next (e);
+        printf("****gggg\n");
     }
+
+//    for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
+//    {
+//        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+//
+//        if (f->fd == fd)
+//        {
+//            printf("***** we found the file for the fd\n");
+//            return f->the_file;
+//        }
+//    }
+
+    printf("******get_file_from_fd return nULL\n");
+    return NULL;
 }
 
 int get_next_fd(){
     // Look at the file descriptor list
-
-
     bool is_list_empty = (list_begin (&fd_list) == list_end (&fd_list));
     if (is_list_empty)
     {
