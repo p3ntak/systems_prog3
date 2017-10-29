@@ -322,7 +322,7 @@ bool remove_fd_from_table(int fd)
     }
 
     // We couldn't find the fd in the table, so don't do anything.
-    printf("******We are at the tail -- returning false\n");
+    // printf("******We are at the tail -- returning false\n");
     return false;
 }
 
@@ -354,7 +354,7 @@ int get_file_from_fd(int fd)
 //        }
 //    }
 
-    printf("******get_file_from_fd return nULL\n");
+//    printf("******get_file_from_fd return nULL\n");
     return NULL;
 }
 
