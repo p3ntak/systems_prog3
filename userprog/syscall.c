@@ -214,10 +214,21 @@ int sys_filesize (int fd){
     actually read (0 at end of file),  or -1 if the file could not be read (due to a condition
     other than end of file). Fd 0 reads from the keyboard using input_getc().
 */
-int sys_read (int fd, void *buffer, unsigned size){
+int sys_read (int fd, void *buffer, unsigned size) {
     //printf("***** Called sys_read but it is not yet implemented.\n");
-    struct file* found_file = get_file_from_fd(fd);
-    return file_read(found_file, buffer, size);
+
+    // Test read-bad-ptr
+    // Check if the buffer is passed PHYS_BASE.  Could add better check here.
+    if (buffer >= 0xc0000000)
+    {
+        sys_exit(-1);
+    }
+
+    if (fd >= 100) {
+
+        struct file *found_file = get_file_from_fd(fd);
+        return file_read(found_file, buffer, size);
+    }
 }
 
 /*
