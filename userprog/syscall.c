@@ -241,7 +241,12 @@ int sys_read (int fd, void *buffer, unsigned size){
 int sys_write (int fd, const void *buffer, unsigned size){
 
     if (fd ==1){
-	putbuf(buffer,size);
+	      putbuf(buffer,size);
+    }
+    else
+    {
+        struct file* found_file = get_file_from_fd(fd);
+        return file_write(found_file, buffer, size);
     }
 }
 
