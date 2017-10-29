@@ -8,6 +8,7 @@
 
 static void syscall_handler (struct intr_frame *);
 bool remove_fd_from_table(int fd);
+int get_file_from_fd(int fd);
 
 struct fd_elem{
 
@@ -46,7 +47,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       "threads/init.h"). This should be seldom used, because you lose
       some information about possible deadlock situations, etc. */
 void sys_halt (void){
-
+    printf("***** Called sys_halt but it is not yet implemented.\n");
 }
 
 /*    Terminates the current user program, returning status to the
@@ -72,7 +73,7 @@ void sys_exit (int status){
  */
 
 pid_t sys_exec (const char *cmd_line){
-
+    printf("***** Called sys_exec but it is not yet implemented.\n");
 }
 
 /*
@@ -125,6 +126,7 @@ pid_t sys_exec (const char *cmd_line){
     any of the rest.
 */
 int sys_wait (pid_t pid){
+    printf("***** Called sys_wait but it is not yet implemented.\n");
 }
 
 /*    Creates a new file called file initially initial_size bytes in
@@ -203,13 +205,19 @@ int sys_open (const char *file){
 /*    Returns the size, in bytes, of the file open as fd. 
  */
 int sys_filesize (int fd){
-
+    //printf("***** Called sys_filesize but it is not yet implemented.\n");
+    struct file* found_file = get_file_from_fd(fd);
+    return file_length(found_file);
 }
 /*
-    Reads size bytes from the file open as fd into buffer. Returns the number of bytes actually read (0 at end of file), or -1 if the file could not be read (due to a condition other than end of file). Fd 0 reads from the keyboard using input_getc(). 
+    Reads size bytes from the file open as fd into buffer. Returns the number of bytes
+    actually read (0 at end of file),  or -1 if the file could not be read (due to a condition
+    other than end of file). Fd 0 reads from the keyboard using input_getc().
 */
 int sys_read (int fd, void *buffer, unsigned size){
-
+    //printf("***** Called sys_read but it is not yet implemented.\n");
+    struct file* found_file = get_file_from_fd(fd);
+    return file_read(found_file, buffer, size);
 }
 
 /*
@@ -252,7 +260,7 @@ int sys_write (int fd, const void *buffer, unsigned size){
 */
 
 void sys_seek (int fd, unsigned position){
-
+    printf("***** Called sys_seek but it is not yet implemented.\n");
 }
 
 /*
@@ -260,7 +268,7 @@ void sys_seek (int fd, unsigned position){
     open file fd, expressed in bytes from the beginning of the file.
 */
 unsigned sys_tell (int fd){
-
+    printf("***** Called sys_tell but it is not yet implemented.\n");
 }
     
 /*
@@ -279,7 +287,7 @@ void sys_close (int fd) {
     else {
         // Test close-normal, close-twice
         if (remove_fd_from_table(fd)) {
-            //printf("About to close file...\n");
+            //printf("About to close file for fd: %d\n", fd);
             file_close(found_file);
         }
 
@@ -336,7 +344,7 @@ int get_file_from_fd(int fd)
         struct fd_elem *f = list_entry (e, struct fd_elem, elem);
         if (f->fd == fd)
         {
-            //printf("***** we found the file for the fd\n");
+            //printf("***** we found the file for the fd %d:\n", f->fd);
             return f->the_file;
         }
 
