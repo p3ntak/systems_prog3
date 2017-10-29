@@ -4,8 +4,20 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
+bool remove_fd_from_table(int fd);
+
+struct fd_elem{
+
+    struct list_elem elem;
+    struct file* the_file;
+
+    int fd;
+};
+
+struct list fd_list;
 
 typedef uint32_t (*syscall)(uint32_t, uint32_t, uint32_t);
 /* syscal is typedef'ed to a function pointers that
@@ -139,6 +151,7 @@ bool sys_create (const char *file, unsigned initial_size) {
     Removing an Open File, for details.
 */
 bool sys_remove (const char *file){
+    filesys_remove(file);
 }
 
 /*    Opens the file called file. Returns a nonnegative integer handle
@@ -161,6 +174,30 @@ bool sys_remove (const char *file){
     share a file position.
     */
 int sys_open (const char *file){
+
+    if (strlen(file) == 0)
+    {
+        // Test open-empty
+        return -1;
+    }
+
+    struct file* opened_file = filesys_open(file);
+
+    if (opened_file == NULL)
+    {
+        // Test open-missing
+        return -1;
+    }
+
+    // Assign a fd to this file*
+    struct fd_elem new_fd_elem;
+    new_fd_elem.fd = get_next_fd();
+    new_fd_elem.the_file = opened_file;
+
+    // Add the fd to the end of the fd table
+    list_push_back(&fd_list, &(new_fd_elem.elem));
+
+    return new_fd_elem.fd;
 }
 
 /*    Returns the size, in bytes, of the file open as fd. 
@@ -231,8 +268,115 @@ unsigned sys_tell (int fd){
     implicitly closes all its open file descriptors, as if by calling
     this function for each one.
 */
-void sys_close (int fd){
+void sys_close (int fd) {
+    // We are given the fd-- lookup the corresponding file*
+    struct file *found_file = get_file_from_fd(fd);
+
+    if (found_file == NULL) {
+        // Test close-twice
+        return;
+    }
+    else {
+        // Test close-normal, close-twice
+        if (remove_fd_from_table(fd)) {
+            //printf("About to close file...\n");
+            file_close(found_file);
+        }
+
+    }
 }
+
+bool remove_fd_from_table(int fd)
+{
+    int count = 0;
+    struct list_elem *e;
+//    printf("**** remove_fd_from_table\n");
+    for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
+    {
+//        printf("**** count=%d\n", count);
+        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+
+//        if (f == list_tail(f))
+//        {
+//            printf("******We are at the tail -- returning false\n");
+//            return false;
+//        }
+
+        if (f->fd == fd)
+        {
+//            printf("******Found a matching fd %d\n", f->fd);
+//            printf("%d, %d, %d\n", f, &f, *f);
+
+
+            // TODO: Figure out why list_remove does not work
+            // The proper way to remove the file descriptor is to remove it
+            // from the list using list_remove.  However this does not behave
+            // as expected.  Setting the fd to -1  essentially invalidates the
+            // fd entry in the list, resulting in similar behavior.
+
+            //list_remove(&f);
+            f->fd = -1;
+            return true;
+        }
+        count++;
+    }
+
+    // We couldn't find the fd in the table, so don't do anything.
+    printf("******We are at the tail -- returning false\n");
+    return false;
+}
+
+int get_file_from_fd(int fd)
+{
+    struct list_elem *e;
+
+    e = list_begin (&fd_list);
+    while(e != list_end (&fd_list) && e->next != NULL)
+    {
+        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+        if (f->fd == fd)
+        {
+            //printf("***** we found the file for the fd\n");
+            return f->the_file;
+        }
+
+        e = list_next (e);
+    }
+
+//    for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
+//    {
+//        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+//
+//        if (f->fd == fd)
+//        {
+//            printf("***** we found the file for the fd\n");
+//            return f->the_file;
+//        }
+//    }
+
+    printf("******get_file_from_fd return nULL\n");
+    return NULL;
+}
+
+int get_next_fd(){
+    // Look at the file descriptor list
+    bool is_list_empty = (list_begin (&fd_list) == list_end (&fd_list));
+    if (is_list_empty)
+    {
+        // If the fd list is empty, assign a default starting fd (100)
+        //printf("Returning 100\n");
+        return 100;
+    }
+    else
+    {
+        // Return the last fd + 1
+        struct fd_elem *last_elem = list_rbegin (&fd_list);
+        int last_fd = last_elem->fd;
+        //printf("*****The last fd was %d\n", last_fd);
+        return last_fd + 1;
+    }
+}
+
 
 void
 syscall_init (void) 
@@ -291,6 +435,9 @@ syscall_init (void)
   //  SYS_CLOSE,                  /* Close a file. */
   syscall_tab[SYS_CLOSE] = (syscall)&sys_close;
   syscall_nArgs[SYS_CLOSE] = 1;
+
+    // Init the fd linked list
+  list_init (&fd_list);
 
 
 }
