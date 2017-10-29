@@ -277,9 +277,9 @@ void sys_close (int fd) {
         return;
     }
     else {
-        // Test close-normal
+        // Test close-normal, close-twice
         if (remove_fd_from_table(fd)) {
-            printf("About to close file...\n");
+            //printf("About to close file...\n");
             file_close(found_file);
         }
 
@@ -290,10 +290,10 @@ bool remove_fd_from_table(int fd)
 {
     int count = 0;
     struct list_elem *e;
-    printf("**** remove_fd_from_table\n");
+//    printf("**** remove_fd_from_table\n");
     for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
     {
-        printf("**** count=%d\n", count);
+//        printf("**** count=%d\n", count);
         struct fd_elem *f = list_entry (e, struct fd_elem, elem);
 
 //        if (f == list_tail(f))
@@ -304,8 +304,16 @@ bool remove_fd_from_table(int fd)
 
         if (f->fd == fd)
         {
-            printf("******Found a matching fd %d\n", f->fd);
+//            printf("******Found a matching fd %d\n", f->fd);
 //            printf("%d, %d, %d\n", f, &f, *f);
+
+
+            // TODO: Figure out why list_remove does not work
+            // The proper way to remove the file descriptor is to remove it
+            // from the list using list_remove.  However this does not behave
+            // as expected.  Setting the fd to -1  essentially invalidates the
+            // fd entry in the list, resulting in similar behavior.
+
             //list_remove(&f);
             f->fd = -1;
             return true;
@@ -320,26 +328,19 @@ bool remove_fd_from_table(int fd)
 
 int get_file_from_fd(int fd)
 {
-    printf("****aaaa\n");
     struct list_elem *e;
 
-    printf("****bbbb\n");
     e = list_begin (&fd_list);
-    printf("****cccc\n");
     while(e != list_end (&fd_list) && e->next != NULL)
     {
-        printf("****dddd\n");
         struct fd_elem *f = list_entry (e, struct fd_elem, elem);
-        printf("****eeee\n");
         if (f->fd == fd)
         {
-            printf("***** we found the file for the fd\n");
+            //printf("***** we found the file for the fd\n");
             return f->the_file;
         }
-        printf("****ffff\n");
 
         e = list_next (e);
-        printf("****gggg\n");
     }
 
 //    for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e))
