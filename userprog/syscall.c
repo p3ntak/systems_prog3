@@ -192,14 +192,15 @@ int sys_open (const char *file){
     }
 
     // Assign a fd to this file*
-    struct fd_elem new_fd_elem;
-    new_fd_elem.fd = get_next_fd();
-    new_fd_elem.the_file = opened_file;
+    // TODO: Make sure that new_fd_elem is freed
+    struct fd_elem *new_fd_elem = calloc(1, sizeof *new_fd_elem);
+    new_fd_elem->fd = get_next_fd();
+    new_fd_elem->the_file = opened_file;
 
     // Add the fd to the end of the fd table
-    list_push_back(&fd_list, &(new_fd_elem.elem));
+    list_push_back(&fd_list, &(new_fd_elem->elem));
 
-    return new_fd_elem.fd;
+    return new_fd_elem->fd;
 }
 
 /*    Returns the size, in bytes, of the file open as fd. 
@@ -306,7 +307,6 @@ void sys_close (int fd) {
             //printf("About to close file for fd: %d\n", fd);
             file_close(found_file);
         }
-
     }
 }
 
