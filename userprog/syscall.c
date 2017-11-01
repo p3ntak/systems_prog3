@@ -1,3 +1,4 @@
+#include "userprog/process.h"
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
@@ -5,6 +6,8 @@
 #include "threads/thread.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+
+
 
 static void syscall_handler (struct intr_frame *);
 bool remove_fd_from_table(int fd);
@@ -73,7 +76,7 @@ void sys_exit (int status){
  */
 
 pid_t sys_exec (const char *cmd_line){
-    printf("***** Called sys_exec but it is not yet implemented.\n");
+    return process_execute(cmd_line);
 }
 
 /*
@@ -126,7 +129,9 @@ pid_t sys_exec (const char *cmd_line){
     any of the rest.
 */
 int sys_wait (pid_t pid){
-    printf("***** Called sys_wait but it is not yet implemented.\n");
+    //printf("***** Called sys_wait but it is not yet implemented.\n");
+
+    return process_wait(pid);
 }
 
 /*    Creates a new file called file initially initial_size bytes in
@@ -463,5 +468,5 @@ syscall_init (void)
     // Init the fd linked list
   list_init (&fd_list);
 
-
+  process_init_thread_list();
 }

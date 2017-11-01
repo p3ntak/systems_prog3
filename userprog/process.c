@@ -29,9 +29,23 @@ typedef  struct  {
   args_t args[100];
 } child_t;
 
+struct thread_elem{
+
+    struct thread *parent;
+    struct thread *child;
+    struct list_elem elem;
+};
+
+struct list thread_list;
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static bool setup_stack (void **esp, child_t *child );
+
+void process_init_thread_list(void)
+{
+  list_init (&thread_list);
+}
 
 /* Starts a new thread running a user program loaded from
    first sub-string of cmd_string.  The new thread may be scheduled (and may even exit)
@@ -66,7 +80,17 @@ process_execute (const char *cmd_string)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (child.args[0].name, PRI_DEFAULT, start_process, &child);
   if (tid == TID_ERROR)
-    palloc_free_page (cmd_copy); 
+    palloc_free_page (cmd_copy);
+
+  // Create new thread element
+  struct thread_elem new_thread_elem;
+  (new_thread_elem.child)->tid = &tid;
+  printf("**** the expected child tid is: %d\n", tid);
+  printf("**** the assigned child tid was: %u\n", (new_thread_elem.child)->tid);
+  //(new_thread_elem.parent)->tid = thread_tid();
+
+  // Add this tid to the thread_list
+  list_push_back(&thread_list, &(new_thread_elem.elem));
   return tid;
 }
 
@@ -122,7 +146,9 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
     while(!child_done){}
-    return -1;
+    printf("*** process_wait(): about to return\n");
+    return child_tid;
+    //return -1;
 }
 
 /* Free the current process's resources. */
@@ -131,8 +157,10 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
+    //printf("process_exit() about to set child_done=1\n");
   child_done = 1;
+
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
