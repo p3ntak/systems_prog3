@@ -70,11 +70,14 @@ process_execute (const char *cmd_string)
   child.argc = i;
   child.child_wait_sem = sem;
 
- 
+  struct thread *cur = thread_current ();
 
   /* Create a new thread to execute FILE_NAME. */
   //printf("1 process_execute() about to thread_create for %s\n", child.args[0].name);
   tid = thread_create (child.args[0].name, PRI_DEFAULT, start_process, &child);
+  cur->children[cur->num_children] = tid;
+  //printf("we have just added %d to the child list of this parent\n", tid);
+  cur->num_children = cur->num_children + 1;
   //printf("2-3 process_execute() waiting for child to finish...\n");
   sema_down(sem); //[semaphore set 1]
   //printf("5 process_execute() after sema_down\n");
@@ -146,18 +149,62 @@ process_wait (tid_t child_tid UNUSED)
   // while(!child_done){}
 
   // get the thread struct with the child_tid
-//  struct thread *cur = thread_current ();
+   struct thread *parent_thread = thread_current ();
 //  printf("process_wait() passed in tid %d\n", child_tid);
 //  printf("process_wait() thread-current() has (parent) tid of %d\n", cur->tid);
 
+
+
   struct thread *found_thread = get_thread_by_tid(child_tid);
+
+  // TODO: We should not wait here unless this parent is actually waiting on
+  // THIS child (child_tid)
+  // If this is NOT waiting on this child, then return -1
+
+  bool is_parent_waiting_on_child = false;
+  int i = 0;
+  tid_t all_children[100];
+
+  for (int j = 0; j < 100; j++)
+  {
+    all_children[j] = parent_thread->children[j];
+  }
+
+
+  for (i= 0; i < parent_thread->num_children; i++)
+  {
+    //printf("checking if %d==%d\n", all_children[i], child_tid);
+    if (all_children[i] == child_tid)
+    {
+      is_parent_waiting_on_child = true;
+      break;
+    }
+  }
+
+  if (!is_parent_waiting_on_child)
+  {
+    //printf("asdfasdfasdfasdfafsd\n");
+    return -1;
+  }
 
   sema_down(&(found_thread->about_to_die_sem)); // [semaphore set 2] basic wait functionality
 
-//  int exit_status = found_thread->status;
+  int exit_status = found_thread->exit_status;
 //  printf("Exit status is %d", exit_status);
 //  printf("Enum found_thread->status is %d", (int)(found_thread->status));
   sema_up(&(found_thread->can_die_now_sem));  // [semaphore set 3] getting status
+
+  // this child is about to die, remove it from the parent's children list
+  for (i= 0; i < parent_thread->num_children; i++)
+  {
+    //printf("checking if %d==%d\n", all_children[i], child_tid);
+    if (all_children[i] == child_tid)
+    {
+      parent_thread->children[i] = -100;
+      break;
+    }
+  }
+
 
   return -1;
   //return exit_status;

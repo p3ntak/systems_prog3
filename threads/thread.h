@@ -92,6 +92,10 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     struct semaphore about_to_die_sem;
     struct semaphore can_die_now_sem;
+    tid_t children[100];
+    int num_children;
+    tid_t parent;
+    int exit_status;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
