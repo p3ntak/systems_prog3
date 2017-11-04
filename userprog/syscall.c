@@ -59,7 +59,7 @@ void sys_halt (void){
 void sys_exit (int status){
 
     printf("%s: exit(%d)\n",thread_name(),status);
-    thread *cur = thread_current();
+    struct thread *cur = thread_current();
     cur->exit_status = status;
     thread_exit();
 

@@ -206,7 +206,8 @@ process_wait (tid_t child_tid UNUSED)
   }
 
 
-  return -1;
+  return found_thread->exit_status;
+  //return -1;
   //return exit_status;
 
 }
