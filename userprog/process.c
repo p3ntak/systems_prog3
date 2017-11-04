@@ -139,14 +139,23 @@ volatile int child_done = 0;
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-   while(!child_done){}
-  //sema_down()
+  // while(!child_done){}
 
-  // sema_down(&about2die);
-  // read child status -- get this from the list of childs
-  // sema_up($can_die_now)
-  // return;
-    return -1;
+  // get the thread struct with the child_tid
+//  struct thread *cur = thread_current ();
+//  printf("process_wait() passed in tid %d\n", child_tid);
+//  printf("process_wait() thread-current() has (parent) tid of %d\n", cur->tid);
+
+  struct thread *found_thread = get_thread_by_tid(child_tid);
+
+  sema_down(&(found_thread->about_to_die_sem));
+
+  //int exit_status = found_thread->status;
+  //sema_up(&(found_thread->can_die_now_sem));
+
+  //return exit_status;
+  return -1;
+
 }
 
 /* Free the current process's resources. */
@@ -156,9 +165,9 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  child_done = 1;
-  // sema_up(&about2die)
-  // sema_down(&can_die_now)
+  //child_done = 1;
+  sema_up(&(cur->about_to_die_sem));
+  //sema_down(&(cur->can_die_now_sem));
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
