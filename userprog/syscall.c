@@ -223,9 +223,13 @@ int sys_open (const char *file){
 /*    Returns the size, in bytes, of the file open as fd. 
  */
 int sys_filesize (int fd){
+  int ret_val = 0;
     //printf("***** Called sys_filesize but it is not yet implemented.\n");
     struct file* found_file = get_file_from_fd(fd);
-    return file_length(found_file);
+  lock_acquire (&lock);
+    ret_val = file_length(found_file);
+  lock_release (&lock);
+  return ret_val;
 }
 /*
     Reads size bytes from the file open as fd into buffer. Returns the number of bytes
@@ -306,7 +310,9 @@ int sys_write (int fd, const void *buffer, unsigned size){
 void sys_seek (int fd, unsigned position){
     //printf("***** Called sys_seek but it is not yet implemented.\n");
   struct file *found_file = get_file_from_fd(fd);
+  lock_acquire (&lock);
   file_seek(found_file, position);
+  lock_release (&lock);
 }
 
 /*
