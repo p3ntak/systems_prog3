@@ -49,7 +49,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       "threads/init.h"). This should be seldom used, because you lose
       some information about possible deadlock situations, etc. */
 void sys_halt (void){
-    printf("***** Called sys_halt but it is not yet implemented.\n");
+    //printf("***** Called sys_halt but it is not yet implemented.\n");
+  shutdown_power_off();
 }
 
 /*    Terminates the current user program, returning status to the
@@ -300,7 +301,9 @@ int sys_write (int fd, const void *buffer, unsigned size){
 */
 
 void sys_seek (int fd, unsigned position){
-    printf("***** Called sys_seek but it is not yet implemented.\n");
+    //printf("***** Called sys_seek but it is not yet implemented.\n");
+  struct file *found_file = get_file_from_fd(fd);
+  file_seek(found_file, position);
 }
 
 /*
@@ -308,7 +311,13 @@ void sys_seek (int fd, unsigned position){
     open file fd, expressed in bytes from the beginning of the file.
 */
 unsigned sys_tell (int fd){
-    printf("***** Called sys_tell but it is not yet implemented.\n");
+    //printf("***** Called sys_tell but it is not yet implemented.\n");
+  struct file *found_file = get_file_from_fd(fd);
+  unsigned  ret_val = 0;
+
+  lock_acquire (&lock);
+  ret_val = file_tell(found_file);
+  lock_release (&lock);
 }
     
 /*
