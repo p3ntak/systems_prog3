@@ -47,9 +47,10 @@ process_execute (const char *cmd_string)
   tid_t tid;
   int i;
   child_t child;
-  struct semaphore sem;
+  //struct semaphore sem;
+  struct semaphore *sem = calloc(1, sizeof *sem);
 
-  sema_init(&sem, 0);
+  sema_init(sem, 0);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -67,7 +68,7 @@ process_execute (const char *cmd_string)
       child.args[i].len = strlen(token);
   }
   child.argc = i;
-  child.child_wait_sem = &sem;
+  child.child_wait_sem = sem;
 
  
 
@@ -75,7 +76,7 @@ process_execute (const char *cmd_string)
   //printf("1 process_execute() about to thread_create for %s\n", child.args[0].name);
   tid = thread_create (child.args[0].name, PRI_DEFAULT, start_process, &child);
   //printf("2-3 process_execute() waiting for child to finish...\n");
-  //sema_down(&sem); [semaphore set 1]
+  sema_down(sem); //[semaphore set 1]
   //printf("5 process_execute() after sema_down\n");
   if (tid == TID_ERROR)
     palloc_free_page (cmd_copy); 
@@ -101,12 +102,10 @@ start_process (void *childptr)
   // Load executable into memory
   success = load (child->args[0].name, &if_.eip, &if_.esp);
 
-  //sema_up(child->child_wait_sem); [semaphore set 1]
-
   /* If load failed, quit. */
   //  palloc_free_page (file_name);
 
-  printf("start_process() load returned a value of %d\n", success);
+  //printf("start_process() load returned a value of %d\n", success);
   if (!success) {
     printf("start_process() about to thread_exit()\n");
     thread_exit();
@@ -118,6 +117,7 @@ start_process (void *childptr)
       thread_exit();
 
 
+  sema_up(child->child_wait_sem); // [semaphore set 1]
   //printf("4 start_process() called sema_up\n");
   
   /* Start the user process by simulating a return from an
@@ -154,11 +154,13 @@ process_wait (tid_t child_tid UNUSED)
 
   sema_down(&(found_thread->about_to_die_sem)); // [semaphore set 2] basic wait functionality
 
-  int exit_status = found_thread->status;
+//  int exit_status = found_thread->status;
+//  printf("Exit status is %d", exit_status);
+//  printf("Enum found_thread->status is %d", (int)(found_thread->status));
   sema_up(&(found_thread->can_die_now_sem));  // [semaphore set 3] getting status
 
-  //return -1;
-  return exit_status;
+  return -1;
+  //return exit_status;
 
 }
 
