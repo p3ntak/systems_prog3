@@ -72,11 +72,11 @@ process_execute (const char *cmd_string)
  
 
   /* Create a new thread to execute FILE_NAME. */
-  printf("1 process_execute() about to thread_create for %s\n", child.args[0].name);
+  //printf("1 process_execute() about to thread_create for %s\n", child.args[0].name);
   tid = thread_create (child.args[0].name, PRI_DEFAULT, start_process, &child);
-  printf("2-3 process_execute() waiting for child to finish...\n");
+  //printf("2-3 process_execute() waiting for child to finish...\n");
   //sema_down(&sem);
-  printf("5 process_execute() after sema_down\n");
+  //printf("5 process_execute() after sema_down\n");
   if (tid == TID_ERROR)
     palloc_free_page (cmd_copy); 
   return tid;
@@ -87,7 +87,7 @@ process_execute (const char *cmd_string)
 static void
 start_process (void *childptr)
 {
-  printf("2-3 start_process() entered with\n");
+  //printf("2-3 start_process() entered with\n");
   child_t *child = (child_t *)childptr;
   struct intr_frame if_;
   bool success;
@@ -114,7 +114,7 @@ start_process (void *childptr)
       thread_exit();
 
 
-  printf("4 start_process() called sema_up\n");
+  //printf("4 start_process() called sema_up\n");
   
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

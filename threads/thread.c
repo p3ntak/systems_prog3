@@ -579,7 +579,7 @@ allocate_tid (void)
   lock_acquire (&tid_lock);
   tid = next_tid++;
   lock_release (&tid_lock);
-  printf("**** adding new tid %d\n", tid);
+  //printf("**** adding new tid %d\n", tid);
 
   return tid;
 }
@@ -590,38 +590,20 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 struct thread* get_thread_by_tid(tid_t child_tid)
 {
-//  struct list_elem *e;
-//
-//  int count = 0;
-//  e = list_begin (&all_list);
-//  while(e != list_end (&all_list) && e->next != NULL)
-//  {
-//
-//    struct thread *t = list_entry (e, struct thread, elem);
-//    printf("get_thread_by_tid[%d]: {%s} comparing %d to %d\n", count++, t->name, t->tid, child_tid);
-//    if (t->tid == child_tid)
-//    {
-//      printf("***** we found the thread for the tid %d:\n", t->tid);
-//      return t;
-//    }
-//
-//    e = list_next (e);
-//  }
 
   struct list_elem *e;
   for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
   {
     int count = 0;
     struct thread *t = list_entry (e, struct thread, allelem);
-    printf("get_thread_by_tid[%d]: {%s} comparing %d to %d\n", count++, t->name, t->tid, child_tid);
+    //printf("get_thread_by_tid[%d]: {%s} comparing %d to %d\n", count++, t->name, t->tid, child_tid);
     if (t->tid == child_tid)
     {
-      printf("***** we found the thread for the tid %d:\n", t->tid);
+      //printf("***** we found the thread for the tid %d:\n", t->tid);
       return t;
     }
   }
 
-  printf("asdfasdfasdf\n");
   return NULL;
 }
 
