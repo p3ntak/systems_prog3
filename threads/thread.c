@@ -470,6 +470,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   sema_init(&(t->about_to_die_sem), 0);
   sema_init(&(t->can_die_now_sem), 0);
+  t->num_children = 0;
 
 }
 
