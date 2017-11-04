@@ -28,6 +28,7 @@ typedef struct{
 typedef  struct  {
   int argc;
   args_t args[100];
+  bool is_exec_fail;
   struct semaphore *child_wait_sem;
 
 } child_t;
@@ -69,6 +70,7 @@ process_execute (const char *cmd_string)
   }
   child.argc = i;
   child.child_wait_sem = sem;
+  child.is_exec_fail = false;
 
   struct thread *cur = thread_current ();
 
@@ -82,8 +84,12 @@ process_execute (const char *cmd_string)
   sema_down(sem); //[semaphore set 1]
   //printf("5 process_execute() after sema_down\n");
   if (tid == TID_ERROR)
-    palloc_free_page (cmd_copy); 
-  return tid;
+    palloc_free_page (cmd_copy);
+
+  if (child.is_exec_fail)
+    return -1;
+  else
+    return tid;
 }
 
 /* A thread function that loads a user process and starts it
@@ -95,7 +101,6 @@ start_process (void *childptr)
   child_t *child = (child_t *)childptr;
   struct intr_frame if_;
   bool success;
-
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -110,14 +115,19 @@ start_process (void *childptr)
 
   //printf("start_process() load returned a value of %d\n", success);
   if (!success) {
-    printf("start_process() about to thread_exit()\n");
+    //printf("start_process() about to thread_exit()\n");
+    child->is_exec_fail = true;
+    sema_up(child->child_wait_sem);
     thread_exit();
   }
 
   /* Set up stack. to put args on stack
      args in the child structure */
-  if (!setup_stack (&if_.esp, child))
-      thread_exit();
+  if (!setup_stack (&if_.esp, child)) {
+    child->is_exec_fail = true;
+    sema_up(child->child_wait_sem);
+    thread_exit();
+  }
 
 
   sema_up(child->child_wait_sem); // [semaphore set 1]
