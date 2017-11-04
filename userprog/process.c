@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 // Each argv has a null-terminated string of characters
 typedef struct{
@@ -27,7 +28,20 @@ typedef struct{
 typedef  struct  {
   int argc;
   args_t args[100];
+  struct semaphore *child_wait_sem;
+  struct semaphore *about_to_die_sem;
+    struct semaphore *can_die_now_sem;
 } child_t;
+
+struct child_elem{
+
+    struct list_elem elem;
+    child_t *the_child;
+    tid_t tid;
+};
+
+struct list child_list;
+static bool is_list_initialized = false;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -40,10 +54,18 @@ static bool setup_stack (void **esp, child_t *child );
 tid_t
 process_execute (const char *cmd_string) 
 {
-    char *cmd_copy, *saveptr, *token;
+  if (!is_list_initialized) {
+    list_init(&child_list);
+    is_list_initialized = true;
+  }
+
+  char *cmd_copy, *saveptr, *token;
   tid_t tid;
   int i;
   child_t child;
+  struct semaphore sem;
+
+  sema_init(&sem, 0);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -61,10 +83,16 @@ process_execute (const char *cmd_string)
       child.args[i].len = strlen(token);
   }
   child.argc = i;
+  child.child_wait_sem = &sem;
+
  
 
   /* Create a new thread to execute FILE_NAME. */
+  printf("1 process_execute() about to thread_create for %s\n", child.args[0].name);
   tid = thread_create (child.args[0].name, PRI_DEFAULT, start_process, &child);
+  printf("2-3 process_execute() waiting for child to finish...\n");
+  //sema_down(&sem);
+  printf("5 process_execute() after sema_down\n");
   if (tid == TID_ERROR)
     palloc_free_page (cmd_copy); 
   return tid;
@@ -75,9 +103,18 @@ process_execute (const char *cmd_string)
 static void
 start_process (void *childptr)
 {
+  struct thread *child_thread = thread_current();
+  tid_t child_tid = child_thread->tid;
+  printf("2-3 start_process() entered with tid=%d\n", child_tid);
   child_t *child = (child_t *)childptr;
   struct intr_frame if_;
   bool success;
+
+  // Add the child struct to the list
+  struct child_elem *new_child_elem = calloc(1, sizeof *new_child_elem);
+  new_child_elem->tid = child_tid;
+  new_child_elem->the_child = child;
+  list_push_back(&child_list, &(new_child_elem->elem));
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -86,6 +123,8 @@ start_process (void *childptr)
   if_.eflags = FLAG_IF | FLAG_MBS;
   // Load executable into memory
   success = load (child->args[0].name, &if_.eip, &if_.esp);
+
+  //sema_up(child->child_wait_sem);
 
   /* If load failed, quit. */
   //  palloc_free_page (file_name);
@@ -97,6 +136,8 @@ start_process (void *childptr)
   if (!setup_stack (&if_.esp, child))
       thread_exit();
 
+
+  printf("4 start_process() called sema_up\n");
   
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -121,7 +162,8 @@ volatile int child_done = 0;
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-    while(!child_done){}
+   while(!child_done){}
+  //sema_down()
     return -1;
 }
 
