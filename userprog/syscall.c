@@ -10,6 +10,7 @@
 static void syscall_handler (struct intr_frame *);
 bool remove_fd_from_table(int fd);
 int get_file_from_fd(int fd);
+struct lock lock;
 
 struct fd_elem{
 
@@ -48,7 +49,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       "threads/init.h"). This should be seldom used, because you lose
       some information about possible deadlock situations, etc. */
 void sys_halt (void){
-    printf("***** Called sys_halt but it is not yet implemented.\n");
+    //printf("***** Called sys_halt but it is not yet implemented.\n");
+  shutdown_power_off();
 }
 
 /*    Terminates the current user program, returning status to the
@@ -138,6 +140,7 @@ int sys_wait (pid_t pid){
       operation which would require a open system call.
 */
 bool sys_create (const char *file, unsigned initial_size) {
+  bool ret = false;
     if (file == NULL)
     {
         // Test: create-null
@@ -145,7 +148,11 @@ bool sys_create (const char *file, unsigned initial_size) {
     }
 
     // All other create tests are handled by filesys_create
-    return filesys_create(file, initial_size);
+  lock_acquire (&lock);
+    ret = filesys_create(file, initial_size);
+  lock_release (&lock);
+
+  return ret;
 
 }
 
@@ -156,7 +163,12 @@ bool sys_create (const char *file, unsigned initial_size) {
     Removing an Open File, for details.
 */
 bool sys_remove (const char *file){
-    filesys_remove(file);
+  bool ret_val = false;
+  lock_acquire (&lock);
+   ret_val = filesys_remove(file);
+  lock_release (&lock);
+
+  return ret_val;
 }
 
 /*    Opens the file called file. Returns a nonnegative integer handle
@@ -186,7 +198,9 @@ int sys_open (const char *file){
         return -1;
     }
 
+  lock_acquire (&lock);
     struct file* opened_file = filesys_open(file);
+  lock_release (&lock);
 
     if (opened_file == NULL)
     {
@@ -209,9 +223,13 @@ int sys_open (const char *file){
 /*    Returns the size, in bytes, of the file open as fd. 
  */
 int sys_filesize (int fd){
+  int ret_val = 0;
     //printf("***** Called sys_filesize but it is not yet implemented.\n");
     struct file* found_file = get_file_from_fd(fd);
-    return file_length(found_file);
+  lock_acquire (&lock);
+    ret_val = file_length(found_file);
+  lock_release (&lock);
+  return ret_val;
 }
 /*
     Reads size bytes from the file open as fd into buffer. Returns the number of bytes
@@ -219,6 +237,7 @@ int sys_filesize (int fd){
     other than end of file). Fd 0 reads from the keyboard using input_getc().
 */
 int sys_read (int fd, void *buffer, unsigned size) {
+  int ret_val = 0;
     //printf("***** Called sys_read but it is not yet implemented.\n");
 
     // Test read-bad-ptr
@@ -231,7 +250,11 @@ int sys_read (int fd, void *buffer, unsigned size) {
     if (fd >= 100) {
 
         struct file *found_file = get_file_from_fd(fd);
-        return file_read(found_file, buffer, size);
+      lock_acquire (&lock);
+        ret_val = file_read(found_file, buffer, size);
+      lock_release (&lock);
+
+      return ret_val;
     }
 }
 
@@ -255,13 +278,18 @@ int sys_read (int fd, void *buffer, unsigned size) {
 */
 int sys_write (int fd, const void *buffer, unsigned size){
 
+  int ret_val = 0;
     if (fd ==1){
 	      putbuf(buffer,size);
     }
     else
     {
         struct file* found_file = get_file_from_fd(fd);
-        return file_write(found_file, buffer, size);
+      lock_acquire (&lock);
+        ret_val = file_write(found_file, buffer, size);
+      lock_release (&lock);
+
+      return ret_val;
     }
 }
 
@@ -280,7 +308,11 @@ int sys_write (int fd, const void *buffer, unsigned size){
 */
 
 void sys_seek (int fd, unsigned position){
-    printf("***** Called sys_seek but it is not yet implemented.\n");
+    //printf("***** Called sys_seek but it is not yet implemented.\n");
+  struct file *found_file = get_file_from_fd(fd);
+  lock_acquire (&lock);
+  file_seek(found_file, position);
+  lock_release (&lock);
 }
 
 /*
@@ -288,7 +320,15 @@ void sys_seek (int fd, unsigned position){
     open file fd, expressed in bytes from the beginning of the file.
 */
 unsigned sys_tell (int fd){
-    printf("***** Called sys_tell but it is not yet implemented.\n");
+    //printf("***** Called sys_tell but it is not yet implemented.\n");
+  struct file *found_file = get_file_from_fd(fd);
+  unsigned  ret_val = 0;
+
+  lock_acquire (&lock);
+  ret_val = file_tell(found_file);
+  lock_release (&lock);
+
+  return ret_val;
 }
     
 /*
@@ -308,7 +348,9 @@ void sys_close (int fd) {
         // Test close-normal, close-twice
         if (remove_fd_from_table(fd)) {
             //printf("About to close file for fd: %d\n", fd);
+          lock_acquire (&lock);
             file_close(found_file);
+          lock_release (&lock);
         }
     }
 }
@@ -466,5 +508,6 @@ syscall_init (void)
     // Init the fd linked list
   list_init (&fd_list);
 
+  lock_init (&lock);
 
 }
