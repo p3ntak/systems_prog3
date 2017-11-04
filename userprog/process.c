@@ -53,8 +53,8 @@ process_execute (const char *cmd_string)
   strlcpy (cmd_copy, cmd_string, PGSIZE);
 
   /* Parse cmd_string into args */
-  for(i=0; ;i++,cmd_string = NULL){
-      token = strtok_r(cmd_string, " ", &saveptr);
+  for(i=0; ;i++,cmd_copy = NULL){
+      token = strtok_r(cmd_copy, " ", &saveptr);
       child.args[i].name = token;
       if (token == NULL)
           break;
