@@ -291,16 +291,18 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
+  if (t->pagedir == NULL)
     goto done;
   process_activate ();
 
   /* Open executable file. */
+  printf("the file_name is %s\n", file_name);
   file = filesys_open (file_name);
+  printf("filesys_open finished\n");
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
-      goto done; 
+      goto done_fail;
     }
 
   /* Read and verify executable header. */
@@ -312,8 +314,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
-      goto done; 
+      //printf ("load: %s: error loading executable\n", file_name);
+      printf("load: no-such-file: open failed\n");
+      goto done_fail;
     }
 
   /* Read program headers. */
@@ -387,7 +390,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+  printf("load success\n");
   return success;
+
+ done_fail:
+  file_close(file);
+  printf("load failed\n");
+  return false;
 }
 
 /* load() helpers. */

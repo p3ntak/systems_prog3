@@ -120,8 +120,11 @@ check_sector (struct block *block, block_sector_t sector)
 void
 block_read (struct block *block, block_sector_t sector, void *buffer)
 {
+  printf("aaa\n");
   check_sector (block, sector);
+  printf("bbb\n");
   block->ops->read (block->aux, sector, buffer);
+  printf("ccc\n");
   block->read_cnt++;
 }
 

@@ -111,6 +111,7 @@ inode_create (block_sector_t sector, off_t length)
 struct inode *
 inode_open (block_sector_t sector)
 {
+  printf("1111\n");
   struct list_elem *e;
   struct inode *inode;
 
@@ -125,19 +126,24 @@ inode_open (block_sector_t sector)
           return inode; 
         }
     }
-
+  printf("22222\n");
   /* Allocate memory. */
   inode = malloc (sizeof *inode);
   if (inode == NULL)
     return NULL;
 
+  printf("3333\n");
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
+  printf("4444\n");
   inode->sector = sector;
   inode->open_cnt = 1;
+  printf("5555\n");
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  printf("6666\n");
   block_read (fs_device, inode->sector, &inode->data);
+  printf("77777\n");
   return inode;
 }
 
