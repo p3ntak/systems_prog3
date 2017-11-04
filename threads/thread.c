@@ -198,6 +198,15 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  // Init semaphores
+  if (&(t->about_to_die_sem) == NULL) {
+    sema_init(&(t->about_to_die_sem), 0);
+  }
+
+  if (&(t->can_die_now_sem) == NULL){
+    sema_init(&(t->can_die_now_sem), 0);
+  }
+
   /* Add to run queue. */
   thread_unblock (t);
 

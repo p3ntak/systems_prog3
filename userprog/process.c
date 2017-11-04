@@ -29,19 +29,8 @@ typedef  struct  {
   int argc;
   args_t args[100];
   struct semaphore *child_wait_sem;
-  struct semaphore *about_to_die_sem;
-    struct semaphore *can_die_now_sem;
+
 } child_t;
-
-struct child_elem{
-
-    struct list_elem elem;
-    child_t *the_child;
-    tid_t tid;
-};
-
-struct list child_list;
-static bool is_list_initialized = false;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -54,11 +43,6 @@ static bool setup_stack (void **esp, child_t *child );
 tid_t
 process_execute (const char *cmd_string) 
 {
-  if (!is_list_initialized) {
-    list_init(&child_list);
-    is_list_initialized = true;
-  }
-
   char *cmd_copy, *saveptr, *token;
   tid_t tid;
   int i;
@@ -103,18 +87,11 @@ process_execute (const char *cmd_string)
 static void
 start_process (void *childptr)
 {
-  struct thread *child_thread = thread_current();
-  tid_t child_tid = child_thread->tid;
-  printf("2-3 start_process() entered with tid=%d\n", child_tid);
+  printf("2-3 start_process() entered with\n");
   child_t *child = (child_t *)childptr;
   struct intr_frame if_;
   bool success;
 
-  // Add the child struct to the list
-  struct child_elem *new_child_elem = calloc(1, sizeof *new_child_elem);
-  new_child_elem->tid = child_tid;
-  new_child_elem->the_child = child;
-  list_push_back(&child_list, &(new_child_elem->elem));
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -164,6 +141,11 @@ process_wait (tid_t child_tid UNUSED)
 {
    while(!child_done){}
   //sema_down()
+
+  // sema_down(&about2die);
+  // read child status -- get this from the list of childs
+  // sema_up($can_die_now)
+  // return;
     return -1;
 }
 
@@ -175,6 +157,9 @@ process_exit (void)
   uint32_t *pd;
 
   child_done = 1;
+  // sema_up(&about2die)
+  // sema_down(&can_die_now)
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
