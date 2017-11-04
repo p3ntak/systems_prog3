@@ -10,6 +10,7 @@
 static void syscall_handler (struct intr_frame *);
 bool remove_fd_from_table(int fd);
 int get_file_from_fd(int fd);
+struct lock lock;
 
 struct fd_elem{
 
@@ -138,6 +139,7 @@ int sys_wait (pid_t pid){
       operation which would require a open system call.
 */
 bool sys_create (const char *file, unsigned initial_size) {
+  bool ret = false;
     if (file == NULL)
     {
         // Test: create-null
@@ -145,7 +147,11 @@ bool sys_create (const char *file, unsigned initial_size) {
     }
 
     // All other create tests are handled by filesys_create
-    return filesys_create(file, initial_size);
+  lock_acquire (&lock);
+    ret = filesys_create(file, initial_size);
+  lock_release (&lock);
+
+  return ret;
 
 }
 
@@ -156,7 +162,9 @@ bool sys_create (const char *file, unsigned initial_size) {
     Removing an Open File, for details.
 */
 bool sys_remove (const char *file){
+  lock_acquire (&lock);
     filesys_remove(file);
+  lock_release (&lock);
 }
 
 /*    Opens the file called file. Returns a nonnegative integer handle
@@ -186,7 +194,9 @@ int sys_open (const char *file){
         return -1;
     }
 
+  lock_acquire (&lock);
     struct file* opened_file = filesys_open(file);
+  lock_release (&lock);
 
     if (opened_file == NULL)
     {
@@ -219,6 +229,7 @@ int sys_filesize (int fd){
     other than end of file). Fd 0 reads from the keyboard using input_getc().
 */
 int sys_read (int fd, void *buffer, unsigned size) {
+  int ret_val = 0;
     //printf("***** Called sys_read but it is not yet implemented.\n");
 
     // Test read-bad-ptr
@@ -231,7 +242,11 @@ int sys_read (int fd, void *buffer, unsigned size) {
     if (fd >= 100) {
 
         struct file *found_file = get_file_from_fd(fd);
-        return file_read(found_file, buffer, size);
+      lock_acquire (&lock);
+        ret_val = file_read(found_file, buffer, size);
+      lock_release (&lock);
+
+      return ret_val;
     }
 }
 
@@ -255,13 +270,18 @@ int sys_read (int fd, void *buffer, unsigned size) {
 */
 int sys_write (int fd, const void *buffer, unsigned size){
 
+  int ret_val = 0;
     if (fd ==1){
 	      putbuf(buffer,size);
     }
     else
     {
         struct file* found_file = get_file_from_fd(fd);
-        return file_write(found_file, buffer, size);
+      lock_acquire (&lock);
+        ret_val = file_write(found_file, buffer, size);
+      lock_release (&lock);
+
+      return ret_val;
     }
 }
 
@@ -308,7 +328,9 @@ void sys_close (int fd) {
         // Test close-normal, close-twice
         if (remove_fd_from_table(fd)) {
             //printf("About to close file for fd: %d\n", fd);
+          lock_acquire (&lock);
             file_close(found_file);
+          lock_release (&lock);
         }
     }
 }
@@ -466,5 +488,6 @@ syscall_init (void)
     // Init the fd linked list
   list_init (&fd_list);
 
+  lock_init (&lock);
 
 }
