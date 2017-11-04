@@ -163,9 +163,12 @@ bool sys_create (const char *file, unsigned initial_size) {
     Removing an Open File, for details.
 */
 bool sys_remove (const char *file){
+  bool ret_val = false;
   lock_acquire (&lock);
-    filesys_remove(file);
+   ret_val = filesys_remove(file);
   lock_release (&lock);
+
+  return ret_val;
 }
 
 /*    Opens the file called file. Returns a nonnegative integer handle
@@ -318,6 +321,8 @@ unsigned sys_tell (int fd){
   lock_acquire (&lock);
   ret_val = file_tell(found_file);
   lock_release (&lock);
+
+  return ret_val;
 }
     
 /*
