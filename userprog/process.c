@@ -75,7 +75,7 @@ process_execute (const char *cmd_string)
   //printf("1 process_execute() about to thread_create for %s\n", child.args[0].name);
   tid = thread_create (child.args[0].name, PRI_DEFAULT, start_process, &child);
   //printf("2-3 process_execute() waiting for child to finish...\n");
-  //sema_down(&sem);
+  //sema_down(&sem); [semaphore set 1]
   //printf("5 process_execute() after sema_down\n");
   if (tid == TID_ERROR)
     palloc_free_page (cmd_copy); 
@@ -101,12 +101,16 @@ start_process (void *childptr)
   // Load executable into memory
   success = load (child->args[0].name, &if_.eip, &if_.esp);
 
-  //sema_up(child->child_wait_sem);
+  //sema_up(child->child_wait_sem); [semaphore set 1]
 
   /* If load failed, quit. */
   //  palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+
+  printf("start_process() load returned a value of %d\n", success);
+  if (!success) {
+    printf("start_process() about to thread_exit()\n");
+    thread_exit();
+  }
 
   /* Set up stack. to put args on stack
      args in the child structure */
@@ -148,13 +152,13 @@ process_wait (tid_t child_tid UNUSED)
 
   struct thread *found_thread = get_thread_by_tid(child_tid);
 
-  sema_down(&(found_thread->about_to_die_sem));
+  sema_down(&(found_thread->about_to_die_sem)); // [semaphore set 2] basic wait functionality
 
-  //int exit_status = found_thread->status;
-  //sema_up(&(found_thread->can_die_now_sem));
+  int exit_status = found_thread->status;
+  sema_up(&(found_thread->can_die_now_sem));  // [semaphore set 3] getting status
 
-  //return exit_status;
-  return -1;
+  //return -1;
+  return exit_status;
 
 }
 
@@ -166,8 +170,8 @@ process_exit (void)
   uint32_t *pd;
 
   //child_done = 1;
-  sema_up(&(cur->about_to_die_sem));
-  //sema_down(&(cur->can_die_now_sem));
+  sema_up(&(cur->about_to_die_sem));    // [semaphore set 2] basic wait functionality
+  sema_down(&(cur->can_die_now_sem)); // [semaphore set 3]  parent is getting my status
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
