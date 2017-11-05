@@ -28,15 +28,15 @@ typedef uint32_t (*syscall)(uint32_t, uint32_t, uint32_t);
 syscall syscall_tab[20]; // for all syscalls possible
 uint32_t syscall_nArgs[20];
 
-typedef uint32_t pid_t; 
+typedef uint32_t pid_t;
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f UNUSED)
 {
     //  printf ("system call!\n");
     //thread_exit ();
     uint32_t callno, args[3], *usp = f->esp;
-    
+
 
     callno = (uint32_t)(*usp);
     args[0] = (uint32_t)(*(usp+1));
@@ -50,7 +50,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       some information about possible deadlock situations, etc. */
 void sys_halt (void){
     //printf("***** Called sys_halt but it is not yet implemented.\n");
-  shutdown_power_off();
+    shutdown_power_off();
 }
 
 /*    Terminates the current user program, returning status to the
@@ -63,8 +63,8 @@ void sys_exit (int status){
     printf("%s: exit(%d)\n",thread_name(),status);
     struct thread *cur = thread_current();
     cur->exit_status = status;
+    //file_allow_write(cur->file);
     thread_exit();
-
 }
 
 /*    Runs the executable whose name is given in cmd_line, passing any
@@ -78,6 +78,8 @@ void sys_exit (int status){
  */
 
 pid_t sys_exec (const char *cmd_line){
+    struct thread *cur = thread_current();
+    file_deny_write(cur->file);
     return process_execute(cmd_line);
 }
 
@@ -140,7 +142,7 @@ int sys_wait (pid_t pid){
       operation which would require a open system call.
 */
 bool sys_create (const char *file, unsigned initial_size) {
-  bool ret = false;
+    bool ret = false;
     if (file == NULL)
     {
         // Test: create-null
@@ -148,11 +150,12 @@ bool sys_create (const char *file, unsigned initial_size) {
     }
 
     // All other create tests are handled by filesys_create
-  lock_acquire (&lock);
+    lock_acquire (&lock);
     ret = filesys_create(file, initial_size);
-  lock_release (&lock);
+    lock_release (&lock);
 
-  return ret;
+
+    return ret;
 
 }
 
@@ -163,12 +166,12 @@ bool sys_create (const char *file, unsigned initial_size) {
     Removing an Open File, for details.
 */
 bool sys_remove (const char *file){
-  bool ret_val = false;
-  lock_acquire (&lock);
-   ret_val = filesys_remove(file);
-  lock_release (&lock);
+    bool ret_val = false;
+    lock_acquire (&lock);
+    ret_val = filesys_remove(file);
+    lock_release (&lock);
 
-  return ret_val;
+    return ret_val;
 }
 
 /*    Opens the file called file. Returns a nonnegative integer handle
@@ -198,9 +201,11 @@ int sys_open (const char *file){
         return -1;
     }
 
-  lock_acquire (&lock);
+    struct thread *cur = thread_current();
+    lock_acquire (&lock);
     struct file* opened_file = filesys_open(file);
-  lock_release (&lock);
+    lock_release (&lock);
+    cur->file = opened_file;
 
     if (opened_file == NULL)
     {
@@ -220,16 +225,16 @@ int sys_open (const char *file){
     return new_fd_elem->fd;
 }
 
-/*    Returns the size, in bytes, of the file open as fd. 
+/*    Returns the size, in bytes, of the file open as fd.
  */
 int sys_filesize (int fd){
-  int ret_val = 0;
+    int ret_val = 0;
     //printf("***** Called sys_filesize but it is not yet implemented.\n");
     struct file* found_file = get_file_from_fd(fd);
-  lock_acquire (&lock);
+    lock_acquire (&lock);
     ret_val = file_length(found_file);
-  lock_release (&lock);
-  return ret_val;
+    lock_release (&lock);
+    return ret_val;
 }
 /*
     Reads size bytes from the file open as fd into buffer. Returns the number of bytes
@@ -237,7 +242,7 @@ int sys_filesize (int fd){
     other than end of file). Fd 0 reads from the keyboard using input_getc().
 */
 int sys_read (int fd, void *buffer, unsigned size) {
-  int ret_val = 0;
+    int ret_val = 0;
     //printf("***** Called sys_read but it is not yet implemented.\n");
 
     // Test read-bad-ptr
@@ -250,11 +255,11 @@ int sys_read (int fd, void *buffer, unsigned size) {
     if (fd >= 100) {
 
         struct file *found_file = get_file_from_fd(fd);
-      lock_acquire (&lock);
+        lock_acquire (&lock);
         ret_val = file_read(found_file, buffer, size);
-      lock_release (&lock);
+        lock_release (&lock);
 
-      return ret_val;
+        return ret_val;
     }
 }
 
@@ -276,20 +281,22 @@ int sys_read (int fd, void *buffer, unsigned size) {
     output by different processes may end up interleaved on the
     console, confusing both human readers and our grading scripts.
 */
-int sys_write (int fd, const void *buffer, unsigned size){
+int sys_write (int fd, const void *buffer, unsigned size) {
 
-  int ret_val = 0;
-    if (fd ==1){
-	      putbuf(buffer,size);
-    }
-    else
-    {
-        struct file* found_file = get_file_from_fd(fd);
-      lock_acquire (&lock);
+    int ret_val = 0;
+    if (fd == 1) {
+        putbuf(buffer, size);
+    } else {
+        struct file *found_file = get_file_from_fd(fd);
+//        if (found_file->deny_write) {
+//            return 0;
+//        }
+        lock_acquire(&lock);
         ret_val = file_write(found_file, buffer, size);
-      lock_release (&lock);
+        lock_release(&lock);
 
-      return ret_val;
+        printf("we are returning %d at sys_write\n", ret_val);
+        return ret_val;
     }
 }
 
@@ -309,10 +316,10 @@ int sys_write (int fd, const void *buffer, unsigned size){
 
 void sys_seek (int fd, unsigned position){
     //printf("***** Called sys_seek but it is not yet implemented.\n");
-  struct file *found_file = get_file_from_fd(fd);
-  lock_acquire (&lock);
-  file_seek(found_file, position);
-  lock_release (&lock);
+    struct file *found_file = get_file_from_fd(fd);
+    lock_acquire (&lock);
+    file_seek(found_file, position);
+    lock_release (&lock);
 }
 
 /*
@@ -321,16 +328,16 @@ void sys_seek (int fd, unsigned position){
 */
 unsigned sys_tell (int fd){
     //printf("***** Called sys_tell but it is not yet implemented.\n");
-  struct file *found_file = get_file_from_fd(fd);
-  unsigned  ret_val = 0;
+    struct file *found_file = get_file_from_fd(fd);
+    unsigned  ret_val = 0;
 
-  lock_acquire (&lock);
-  ret_val = file_tell(found_file);
-  lock_release (&lock);
+    lock_acquire (&lock);
+    ret_val = file_tell(found_file);
+    lock_release (&lock);
 
-  return ret_val;
+    return ret_val;
 }
-    
+
 /*
     Closes file descriptor fd. Exiting or terminating a process
     implicitly closes all its open file descriptors, as if by calling
@@ -348,9 +355,9 @@ void sys_close (int fd) {
         // Test close-normal, close-twice
         if (remove_fd_from_table(fd)) {
             //printf("About to close file for fd: %d\n", fd);
-          lock_acquire (&lock);
+            lock_acquire (&lock);
             file_close(found_file);
-          lock_release (&lock);
+            lock_release (&lock);
         }
     }
 }
@@ -448,66 +455,66 @@ int get_next_fd(){
 
 
 void
-syscall_init (void) 
+syscall_init (void)
 {
-  intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+    intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 
-  //  SYS_HALT,                   /* Halt the operating system. */
-  syscall_tab[SYS_HALT] = (syscall)&sys_halt;
-  syscall_nArgs[SYS_HALT] = 0;
-	
-  //    SYS_EXIT,                   /* Terminate this process. */
-  syscall_tab[SYS_EXIT] = (syscall)&sys_exit;
-  syscall_nArgs[SYS_EXIT] = 1;
+    //  SYS_HALT,                   /* Halt the operating system. */
+    syscall_tab[SYS_HALT] = (syscall)&sys_halt;
+    syscall_nArgs[SYS_HALT] = 0;
 
-  // SYS_EXEC,                   /* Start another process. */
-  syscall_tab[SYS_EXEC] = (syscall)&sys_exec;
-  syscall_nArgs[SYS_EXEC] = 1;
+    //    SYS_EXIT,                   /* Terminate this process. */
+    syscall_tab[SYS_EXIT] = (syscall)&sys_exit;
+    syscall_nArgs[SYS_EXIT] = 1;
 
-  
-  //  SYS_WAIT,                   /* Wait for a child process to die. */
-  syscall_tab[SYS_WAIT] = (syscall)&sys_wait;
-  syscall_nArgs[SYS_WAIT] = 1;
+    // SYS_EXEC,                   /* Start another process. */
+    syscall_tab[SYS_EXEC] = (syscall)&sys_exec;
+    syscall_nArgs[SYS_EXEC] = 1;
 
-  //  SYS_CREATE,                 /* Create a file. */
-  syscall_tab[SYS_CREATE] = (syscall)&sys_create;
-  syscall_nArgs[SYS_CREATE] = 2;
 
-  //  SYS_REMOVE,                 /* Delete a file. */
-  syscall_tab[SYS_REMOVE] = (syscall)&sys_remove;
-  syscall_nArgs[SYS_REMOVE] = 1;
+    //  SYS_WAIT,                   /* Wait for a child process to die. */
+    syscall_tab[SYS_WAIT] = (syscall)&sys_wait;
+    syscall_nArgs[SYS_WAIT] = 1;
 
-  //  SYS_OPEN,                   /* Open a file. */
-  syscall_tab[SYS_OPEN] = (syscall)&sys_open;
-  syscall_nArgs[SYS_OPEN] = 1;
+    //  SYS_CREATE,                 /* Create a file. */
+    syscall_tab[SYS_CREATE] = (syscall)&sys_create;
+    syscall_nArgs[SYS_CREATE] = 2;
 
-  // SYS_FILESIZE,               /* Obtain a file's size. */
-  syscall_tab[SYS_FILESIZE] = (syscall)&sys_filesize;
-  syscall_nArgs[SYS_FILESIZE] = 1;
+    //  SYS_REMOVE,                 /* Delete a file. */
+    syscall_tab[SYS_REMOVE] = (syscall)&sys_remove;
+    syscall_nArgs[SYS_REMOVE] = 1;
 
-  //  SYS_READ,                   /* Read from a file. */
-  syscall_tab[SYS_READ] = (syscall)&sys_read;
-  syscall_nArgs[SYS_READ] = 3;
+    //  SYS_OPEN,                   /* Open a file. */
+    syscall_tab[SYS_OPEN] = (syscall)&sys_open;
+    syscall_nArgs[SYS_OPEN] = 1;
 
-  //  SYS_WRITE,                  /* Write to a file. */
-  syscall_tab[SYS_WRITE] = (syscall)&sys_write;
-  syscall_nArgs[SYS_WRITE] = 1;
+    // SYS_FILESIZE,               /* Obtain a file's size. */
+    syscall_tab[SYS_FILESIZE] = (syscall)&sys_filesize;
+    syscall_nArgs[SYS_FILESIZE] = 1;
 
-  //  SYS_SEEK,                   /* Change position in a file. */
-  syscall_tab[SYS_SEEK] = (syscall)&sys_seek;
-  syscall_nArgs[SYS_SEEK] = 2;
+    //  SYS_READ,                   /* Read from a file. */
+    syscall_tab[SYS_READ] = (syscall)&sys_read;
+    syscall_nArgs[SYS_READ] = 3;
 
-  //  SYS_TELL,                   /* Report current position in a file. */
-  syscall_tab[SYS_TELL] = (syscall)&sys_tell;
-  syscall_nArgs[SYS_TELL] = 1;
+    //  SYS_WRITE,                  /* Write to a file. */
+    syscall_tab[SYS_WRITE] = (syscall)&sys_write;
+    syscall_nArgs[SYS_WRITE] = 1;
 
-  //  SYS_CLOSE,                  /* Close a file. */
-  syscall_tab[SYS_CLOSE] = (syscall)&sys_close;
-  syscall_nArgs[SYS_CLOSE] = 1;
+    //  SYS_SEEK,                   /* Change position in a file. */
+    syscall_tab[SYS_SEEK] = (syscall)&sys_seek;
+    syscall_nArgs[SYS_SEEK] = 2;
+
+    //  SYS_TELL,                   /* Report current position in a file. */
+    syscall_tab[SYS_TELL] = (syscall)&sys_tell;
+    syscall_nArgs[SYS_TELL] = 1;
+
+    //  SYS_CLOSE,                  /* Close a file. */
+    syscall_tab[SYS_CLOSE] = (syscall)&sys_close;
+    syscall_nArgs[SYS_CLOSE] = 1;
 
     // Init the fd linked list
-  list_init (&fd_list);
+    list_init (&fd_list);
 
-  lock_init (&lock);
+    lock_init (&lock);
 
 }
