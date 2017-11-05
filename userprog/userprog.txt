@@ -5,21 +5,76 @@
 		     +--------------------------+
 ---- GROUP ----
 >> Fill in the names and email addresses of your group members.
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Matt Wey <wey.matt@utexas.edu>
+Abed Haque <abedhaque@gmail.com>
+
 ---- PRELIMINARIES ----
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
+
+No additional resources besides the above.
+
 			   ARGUMENT PASSING
 			   ================
 ---- DATA STRUCTURES ----
 >> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+struct thread in thread.h line 84
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    struct list_elem allelem;           /* List element for all threads list. */
+    struct semaphore about_to_die_sem;
+    struct semaphore can_die_now_sem;
+    tid_t children[100];
+    int num_children;
+    tid_t parent;
+    int exit_status;
+    struct file *file;
+    int fd;
+
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
+
+
+We added two semaphores (about_to_die_sem and can_die_now_sem) in the
+thread structure in order to properly synchronize with the child process.
+
+We also added children[], num_children, and parent, in order to keep
+track of all children processes for a given parent.
+
+typedef  struct  {
+  int argc;
+  args_t args[100];
+  bool is_exec_fail;
+  struct semaphore *child_wait_sem;
+} child_t;
+
+We modified the initial child structure that was given by adding a child_wait_sem
+semaphore and an is_exec_fail flag.  The semaphore allowed us to achieve better
+synchronization in process_wait by replacing the busy/wait that was there before.
+The is_exec_fail flag helped keep track of children that were not executed to completion
+(due to the file not being present for example).
+
 ---- ALGORITHMS ----
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
@@ -33,20 +88,56 @@ FirstName LastName <email@domain.example>
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+struct fd_elem{
+    struct list_elem elem;
+    struct file* the_file;
+    int fd;
+};
+
+struct list fd_list;
+
+We used the provided linked list structure to create our file descriptor table,
+named fd_list.  Each element in the linked list is the struct fd_elem, which
+contains the minimum elements required to keep track of files: the file itself,
+the file descriptor, and the the linked list element.
+
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+File descriptors are unique within the entire operating system. A globally available
+linked list makes up the file descriptor table. If the file descriptor is related to an
+open file a thread notes in its own thread structure that it has the file with a given FD open.
+
 ---- ALGORITHMS ----
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+The sys_read and sys_write function calls in syscall.c handle reading and writing.
+We first validate the the inputs are located at valid address spaces.  Any filesystem
+calls are called with a lock around them for mutual exclusion.
+
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
 >> and the greatest possible number of inspections of the page table
 >> (e.g. calls to pagedir_get_page()) that might result?  What about
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
+
+The least number of calls to pagedir_get_page() would be 1 if all of the data were
+contiguous and perhaps 2 at max.  There could be many more calls if that data were not
+contiguous.  For 2 bytes of data, the number inspections of the page table would likely be 1.
+Through more complicated memory management it could allow trying to find blocks of memory that
+could fit the size of the get page requests.
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+During the execute call, the parent creates a thread then continues on and will eventually
+wait on its child in the wait system call. The blocking call is a sema_down that waits for
+the child process to call sema_up on the same semaphore. Child is the owner of the semaphore
+ which allows the parent to check all of its children (information stored in the thread structure)
+ to make sure it is supposed to wait before exiting.
+
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
 >> process to be terminated.  System calls are fraught with such
@@ -60,24 +151,49 @@ FirstName LastName <email@domain.example>
 >> allocated resources (locks, buffers, etc.) are freed?  In a few
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
+
+Common error handling procedures like checking for a valid memory address was generally encapsulated
+ a separate function and reused.  Having a common exit point for error conditions make freeing allocated
+ resources easier.  Generally each function was responsible for freeing the resources that it had created.
+ With more time we could have done a better job in memory management.
+
 ---- SYNCHRONIZATION ----
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+When the exec calls loading, if the load returns a failure, the child thread structure marks itself as a
+failed to load process and starts the exiting process. When the parent finishes waiting for the child it
+checks to see if the child failed to load and if it did not load successfully then the parent returns the
+child’s exit status of -1.
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
 >> calls wait(C) before C exits?  After C exits?  How do you ensure
 >> that all resources are freed in each case?  How about when P
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
+Synchronization between parent and child are done through sets of semaphores. When a thread is created a
+parent is blocked until the child finishes attempting to load. The child releases the semaphore and allows
+the parent to proceed. When a parent makes it to process wait, it checks to see if any of its children are
+still alive and if any are still alive it waits on them then proceeds to exit. The waiting stage uses two
+sets of locks to avoid race conditions. The parent wants to find out the exit status of the child so the child
+is blocked by a semaphore until the parent finishes reading it. This avoids a race condition of the parent needing
+the read the child before the child dies.
+
 ---- RATIONALE ----
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
+This was done during our in class coding.
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
+Our implementation of file descriptors was done well. The FD table is managed well in that it is a
+linked list that can allocated FDs as needed without assigning duplicates between processes. A place
+where it could use improvement is the locking of the files when in use because no other process can modify
+a file in use by a processes but we were unable to prevent a process from modifying a file itself has access to.
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+We did not change tid_t to pid_t mapping.
+
 			   SURVEY QUESTIONS
 			   ================
 Answering these questions is optional, but it will help us improve the
@@ -87,11 +203,29 @@ choose to respond anonymously in the course evaluations at the end of
 the quarter.
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
+Matt: The project was difficult and long but not too long. Doing the first part in class felt like it
+gave me insight into how pintos works and got the project started in the right direction. The tests were
+set up well in that if you planned your implementation well for one test, other tests also passed.
+Abed: I agree with Matt.
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
+Matt: the project in general gave me a good understanding on how file descriptors and threads/processes work.
+Though I do have a better understanding of how virtual and physical memory work, I feel that I do not
+understand it as well as I now understand files and threads.
 >> Is there some particular fact or hint we should give students in
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
+Matt: I appreciated all the hints that were given in class and otherwise, the semaphores in particular stand out.
+I did not find any advice misleading. Something to consider is the issue that some of us had in week 1 of this
+project with getting the project running. The solution was to have an older version of gcc.
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining projects?
 >> Any other comments?
+Matt: Discussion with my classmates helped validate my ideas or give me helpful hints in one direction of another.
+Future students would be wise to keep communication open with their classmates.
+>> Comment on how working on the initial part in class helped.
+Abed: The initial walkthrough and explanation in class definitely helped.  The explanations that were given helped
+in understanding of some of the fundamental of Pintos, and made it a lot easier to make progress.  The remainder of
+the project still took a considerable amount of time to complete, but we were able to get through most of it because
+of the initial help that was provided in class.
+Matt: I agree with Abed.
