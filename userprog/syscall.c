@@ -10,11 +10,14 @@
 static void syscall_handler (struct intr_frame *);
 bool remove_fd_from_table(int fd);
 int get_file_from_fd(int fd);
+bool get_is_reading_from_fd(int fd);
+void set_is_reading_for_fd(int fd, bool is_reading);
 struct lock lock;
 
 struct fd_elem{
 
     struct list_elem elem;
+    bool is_reading;
     struct file* the_file;
 
     int fd;
@@ -258,9 +261,19 @@ int sys_read (int fd, void *buffer, unsigned size) {
 
     if (fd >= 100) {
 
+        struct thread *cur = thread_current();
         struct file *found_file = get_file_from_fd(fd);
         lock_acquire (&lock);
+        file_deny_write(found_file);
+
+        // set is reading flag to to true
+        set_is_reading_for_fd(fd, true);
         ret_val = file_read(found_file, buffer, size);
+        // set is reading flag to false
+        // is this my fd?
+        if (cur->fd == fd) {
+            set_is_reading_for_fd(fd, false);
+        }
         lock_release (&lock);
 
         return ret_val;
@@ -299,7 +312,9 @@ int sys_write (int fd, const void *buffer, unsigned size) {
         struct thread *cur = thread_current();
 
         lock_acquire(&lock);
-        if (cur->fd == fd && fd >= 100)
+
+        // don't mess up stdin (fd = 1)
+        if (fd >= 100 && !get_is_reading_from_fd(fd))
         {
             file_allow_write(found_file);
         }
@@ -443,6 +458,43 @@ int get_file_from_fd(int fd)
 
 //    printf("******get_file_from_fd return nULL\n");
     return NULL;
+}
+
+bool get_is_reading_from_fd(int fd)
+{
+    struct list_elem *e;
+
+    e = list_begin (&fd_list);
+    while(e != list_end (&fd_list) && e->next != NULL)
+    {
+        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+        if (f->fd == fd)
+        {
+            return f->is_reading;
+        }
+
+        e = list_next (e);
+    }
+
+    return false;
+}
+
+void set_is_reading_for_fd(int fd, bool is_reading)
+{
+    struct list_elem *e;
+
+    e = list_begin (&fd_list);
+    while(e != list_end (&fd_list) && e->next != NULL)
+    {
+        struct fd_elem *f = list_entry (e, struct fd_elem, elem);
+        if (f->fd == fd)
+        {
+            f->is_reading = is_reading;
+            break;
+        }
+
+        e = list_next (e);
+    }
 }
 
 
