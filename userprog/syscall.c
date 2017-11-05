@@ -42,6 +42,16 @@ syscall_handler (struct intr_frame *f UNUSED)
     args[0] = (uint32_t)(*(usp+1));
     args[1] = (uint32_t)(*(usp+2));
     args[2] = (uint32_t)(*(usp+3));
+
+    if (callno == SYS_EXIT)
+    {
+        if ((f->esp + 32) >= 0xc0000000)
+        {
+            f->eax = -1;
+            sys_exit(-1);
+        }
+    }
+
     f->eax = syscall_tab[callno](args[0],args[1],args[2]);
 }
 
