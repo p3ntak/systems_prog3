@@ -79,7 +79,7 @@ void sys_exit (int status){
 
 pid_t sys_exec (const char *cmd_line){
     struct thread *cur = thread_current();
-    if (cur->file != NULL) {
+    if (cur->file != NULL && cur->fd >= 100) {
         file_deny_write(cur->file);
     }
     return process_execute(cmd_line);
@@ -299,7 +299,7 @@ int sys_write (int fd, const void *buffer, unsigned size) {
         struct thread *cur = thread_current();
 
         lock_acquire(&lock);
-        if (cur->fd == fd)
+        if (cur->fd == fd && fd >= 100)
         {
             file_allow_write(found_file);
         }
