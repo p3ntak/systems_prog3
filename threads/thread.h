@@ -96,6 +96,8 @@ struct thread
     int num_children;
     tid_t parent;
     int exit_status;
+    struct file *file;
+    int fd;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
