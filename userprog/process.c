@@ -173,9 +173,10 @@ process_wait (tid_t child_tid UNUSED)
 
   bool is_parent_waiting_on_child = false;
   int i = 0;
+  int j;
   tid_t all_children[100];
 
-  for (int j = 0; j < 100; j++)
+  for (j = 0; j < 100; j++)
   {
     all_children[j] = parent_thread->children[j];
   }

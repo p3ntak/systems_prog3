@@ -383,8 +383,8 @@ bool remove_fd_from_table(int fd)
             // as expected.  Setting the fd to -1  essentially invalidates the
             // fd entry in the list, resulting in similar behavior.
 
-            //list_remove(&f);
-            f->fd = -1;
+            list_remove(e);
+//            f->fd = -1;
             return true;
         }
         count++;
