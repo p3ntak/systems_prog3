@@ -79,7 +79,9 @@ void sys_exit (int status){
 
 pid_t sys_exec (const char *cmd_line){
     struct thread *cur = thread_current();
-    file_deny_write(cur->file);
+    if (cur->file != NULL) {
+        file_deny_write(cur->file);
+    }
     return process_execute(cmd_line);
 }
 
@@ -222,6 +224,8 @@ int sys_open (const char *file){
     // Add the fd to the end of the fd table
     list_push_back(&fd_list, &(new_fd_elem->elem));
 
+    cur->fd = new_fd_elem->fd;
+
     return new_fd_elem->fd;
 }
 
@@ -291,11 +295,18 @@ int sys_write (int fd, const void *buffer, unsigned size) {
 //        if (found_file->deny_write) {
 //            return 0;
 //        }
+
+        struct thread *cur = thread_current();
+
         lock_acquire(&lock);
+        if (cur->fd == fd)
+        {
+            file_allow_write(found_file);
+        }
         ret_val = file_write(found_file, buffer, size);
         lock_release(&lock);
 
-        printf("we are returning %d at sys_write\n", ret_val);
+        //printf("we are returning %d at sys_write\n", ret_val);
         return ret_val;
     }
 }
@@ -433,6 +444,8 @@ int get_file_from_fd(int fd)
 //    printf("******get_file_from_fd return nULL\n");
     return NULL;
 }
+
+
 
 int get_next_fd(){
     // Look at the file descriptor list
